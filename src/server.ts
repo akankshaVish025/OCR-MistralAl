@@ -3,6 +3,7 @@ import multer from "multer";
 import { join } from "path";
 import { processWithOCR } from "./ocr";
 import { structureWithLLM } from "./llm";
+import { uploadFileToMistral, getSignedUrlFromMistral } from "./mistralFile"
 import fs from "fs";
 
 const app = express();
@@ -15,18 +16,29 @@ app.post("/api/ocr", upload.single("file"), async (req: Request, res: Response) 
             return;
         }
 
+        // 1. Upload file to Mistral storage
+        const uploadResult = await uploadFileToMistral(req.file.path);
+        const fileId = uploadResult.id;
+        if (!fileId) throw new Error("Failed to upload file to Mistral storage");
+
+        // 2. Get signed URL for OCR
+        const signedUrl = await getSignedUrlFromMistral(fileId);
+        if (!signedUrl) throw new Error("Failed to get signed URL from Mistral");
+
+        // 3. Remove local file after upload
+        fs.unlinkSync(req.file.path);
+
         // OCR processing
-        const ocrResult = await processWithOCR(req.file.path);
+        const ocrResult = await processWithOCR(signedUrl);
+        console.log("OCR_RESULT****", ocrResult);
+        
         // Add null check for ocrResult
         if (!ocrResult) throw new Error("OCR processing failed");
         // For multi-page: concatenate text
-        const allText = ocrResult.pages.map((p: any) => p.text).join("\n\n");
+        const allMarkdown = ocrResult.pages?.map((p: any) => p.markdown).join("\n\n");
 
         // LLM structuring
-        const structured = await structureWithLLM(allText);
-
-        // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
+        const structured = await structureWithLLM(allMarkdown);
 
         res.json({ structured });
     }
@@ -36,8 +48,9 @@ app.post("/api/ocr", upload.single("file"), async (req: Request, res: Response) 
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Mistral OCR API running on http://localhost:${PORT}`);
 });
+server.timeout = 10 * 60 * 1000; // 10 minutes
 
 
