@@ -43,25 +43,26 @@ dotenv.config();
 //     [key: string]: any;
 // }
 
-console.log("Loaded API key:", process.env.MISTRAL_API_KEY);
-const API_KEY = process.env.MISTRAL_API_KEY;
-if (!API_KEY) {
+// console.log("Loaded API key: LLM", process.env.MISTRAL_API_KEY);
+
+if (!process.env.MISTRAL_API_KEY) {
     throw new Error("MISTRAL_API_KEY is not set in your environment variables.");
 }
 
 export async function structureWithLLM(markdown: string) {
+    console.log("Inside LLM$$$$");
+
     try {
         const prompt = `
-Extract the following fields as JSON:
-- Bank Name
-- Branch Address
-- IFSC Code
-- Account Number
-- Date (if present)
-- Any other key details
-
-Document OCR text (in markdown):
-${markdown}
+        Analyze the following document OCR text (in markdown). 
+        Extract all structured information you can find and return it as valid JSON.
+        Group related fields into objects or arrays as appropriate.
+        Use the text and tables to infer field names and values.
+        If you find tables, convert them into arrays of objects with appropriate keys.
+        If you find key-value pairs, include them as fields in the JSON.
+        If a value is missing, use null.
+        Do not include any explanation or extra text—return only the JSON object:
+        ${markdown}
         `.trim();
 
         const payload = {

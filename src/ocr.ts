@@ -9,10 +9,10 @@
 //     try {
 //         const { base64, mime } = fileToBase64(filePath);
 //         console.log(base64, mime , "FERE");
-        
+
 //         const documentUrl = `data:${mime};base64,${base64}`;
 //         console.log("DOCUMENT URL", documentUrl);
-        
+
 //         const ocrResponse = await client.ocr.process({
 //             model: "mistral-ocr-latest",
 //             document: {
@@ -35,19 +35,27 @@ import * as dotenv from "dotenv";
 import { fileToBase64 } from "./utils";
 dotenv.config();
 
-export async function processWithOCR(documentUrl: string) {
+// console.log('Loaded API key: OCR', process.env.MISTRAL_API_KEY);
+
+export async function processWithOCR({ type, url, field }: { type: string, url: string, field: string }) {
+    console.log("Inside OCR****");
+
     // const { base64, mime } = fileToBase64(filePath);
     // const documentUrl = `data:${mime};base64,${base64}`;
     try {
+        const payload = {
+            model: "mistral-ocr-latest",
+            document: {
+                type: type,
+                [field]: url
+            }
+        };
+
+        console.log("PAYLOAD: ", payload);
+        
         const response = await axios.post(
             "https://api.mistral.ai/v1/ocr",
-            {
-                model: "mistral-ocr-latest",
-                document: {
-                    type: "document_url",
-                    document_url: documentUrl
-                }
-            },
+            payload,
             {
                 headers: {
                     Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
